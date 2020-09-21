@@ -1,0 +1,8 @@
+secretGenerator:
+- name: mysql-password
+  literals:
+  - password=MyPasswordIsThis123$
+resources:
+- mysql-deployment.yaml
+- mediawiki-deployment.yaml
+- php-deployment.yml

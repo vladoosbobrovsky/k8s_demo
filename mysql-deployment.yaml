@@ -1,0 +1,77 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: database
+  labels:
+    app: mediawiki
+spec:
+  ports:
+    - port: 3306
+  selector:
+    app: mediawiki
+    tier: mysql
+  clusterIP: 10.96.240.60
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysqlmediawiki-pv
+  labels:
+    app: mediawiki
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mediawiki-mysql
+  labels:
+    app: mediawiki
+spec:
+  selector:
+    matchLabels:
+      app: mediawiki
+      tier: mysql
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: mediawiki
+        tier: mysql
+      annotations:
+        backup.velero.io/backup-volumes: mediawiki-persistent-storage
+    spec:
+      containers:
+      - image: mariadb
+        name: mysql
+        env:
+        - name: MYSQL_DATABASE
+          value: mywiki
+        - name: MYSQL_USER
+          value: wikiuser
+        - name: MYSQL_PASSWORD
+          value: wikiuser
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mysql-password
+              key: password
+        ports:
+        - containerPort: 3306
+          name: mysql
+        volumeMounts:
+        - name: mediawiki-persistent-storage
+          mountPath: /var/lib/mysql
+        securityContext:
+          privileged: true
+      volumes:
+      - name: mediawiki-persistent-storage
+        persistentVolumeClaim:
+          claimName: mysqlmediawiki-pv
+          mysql-data:
+            driver: local
